@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LexiKeep - Flashcards & Filters</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* FLIP CARD CSS */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .card-inner { transition: transform 0.6s; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-20">
+
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3 shadow-sm">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 text-white p-1.5 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800">LexiKeep</h1>
+            </div>
+            <div id="auth-section">
+                <button id="auth-btn" onclick="handleAuthClick()" disabled class="bg-slate-300 text-slate-500 px-5 py-2 rounded-full font-medium text-sm transition shadow-sm cursor-wait flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Loading...
+                </button>
+                <button id="signout-btn" onclick="handleSignoutClick()" class="hidden text-slate-500 hover:text-red-500 font-medium text-sm px-3">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <div id="error-banner" class="hidden max-w-5xl mx-auto mt-4 p-4 bg-red-100 border border-red-200 text-red-700 rounded-lg text-sm font-medium"></div>
+
+    <main class="max-w-5xl mx-auto p-4">
+
+        <div class="flex justify-center my-6">
+            <div class="bg-white p-1 rounded-full border border-slate-200 shadow-sm inline-flex">
+                <button onclick="switchTab('library')" id="tab-library" class="px-5 py-2 rounded-full text-sm font-bold transition bg-indigo-100 text-indigo-700">
+                    My Words
+                </button>
+                <button onclick="switchTab('flashcards')" id="tab-flashcards" class="px-5 py-2 rounded-full text-sm font-bold transition text-slate-500 hover:bg-slate-50">
+                    Flashcards
+                </button>
+                <button onclick="switchTab('game')" id="tab-game" class="px-5 py-2 rounded-full text-sm font-bold transition text-slate-500 hover:bg-slate-50">
+                    Typing Game
+                </button>
+            </div>
+        </div>
+
+        <section id="view-library">
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold text-slate-700">Add Entry</h2>
+                        <span class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">Status: <span id="status-indicator">Ready</span></span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="lib-search" oninput="renderCards()" placeholder="Search..." class="pl-8 p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none w-32 md:w-48 transition-all focus:w-48 md:focus:w-64">
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase hidden md:block">Filter:</label>
+                            <select id="lib-filter" onchange="renderCards()" class="p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="all">Show All</option>
+                                <option value="words">Words Only</option>
+                                <option value="phrases">Phrases Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <input type="text" id="in-word" placeholder="English Word" class="md:col-span-3 p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <input type="text" id="in-trans" placeholder="Chinese Translation" class="md:col-span-3 p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <div class="md:col-span-3 relative">
+                        <input type="text" id="in-group" list="group-list" placeholder="Group (e.g. Work)" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <datalist id="group-list"></datalist>
+                    </div>
+                    <div class="md:col-span-3 flex gap-2">
+                        <select id="in-type" class="p-2.5 border rounded-lg bg-slate-50 outline-none flex-1">
+                            <option value="words">Word</option>
+                            <option value="phrases">Phrase</option>
+                        </select>
+                        <button onclick="addEntry()" id="btn-add" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-lg font-bold shadow-md transition">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
+                <div class="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
+                    <p class="text-slate-400">Waiting for Sign In...</p>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="view-flashcards" class="hidden max-w-lg mx-auto mt-6">
+            <div class="perspective-1000 w-full h-80 cursor-pointer" onclick="flipCard()">
+                <div id="flashcard-inner" class="card-inner relative w-full h-full transform-style-3d shadow-xl rounded-2xl">
+                    
+                    <div class="absolute w-full h-full bg-white rounded-2xl border border-slate-200 backface-hidden flex flex-col items-center justify-center p-8">
+                        <div id="fc-badge" class="absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded bg-slate-100 text-slate-500 uppercase">...</div>
+                        <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Meaning</div>
+                        <div id="fc-front" class="text-4xl font-extrabold text-slate-800 text-center">...</div>
+                        <div class="absolute bottom-4 text-slate-400 text-xs">Click to flip</div>
+                    </div>
+
+                    <div class="absolute w-full h-full bg-indigo-600 rounded-2xl backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 text-white">
+                        <div class="text-indigo-200 text-xs font-bold uppercase tracking-widest mb-4">English</div>
+                        <div id="fc-back" class="text-4xl font-extrabold text-center">...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mt-8">
+                <button onclick="nextFlashcard()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-8 py-3 rounded-full font-bold shadow-sm transition flex items-center gap-2">
+                    Next Card
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                </button>
+            </div>
+            <p id="fc-status" class="text-center text-slate-400 text-sm mt-4"></p>
+        </section>
+
+
+        <section id="view-game" class="hidden max-w-xl mx-auto mt-8">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative">
+                <div class="bg-indigo-600 h-2 w-full"></div>
+                <div class="p-8 text-center">
+                    <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Type the English Word or Phrase</h3>
+                    <div id="game-q" class="text-4xl font-extrabold text-slate-800 mb-8 min-h-[3rem] flex items-center justify-center">...</div>
+                    
+                    <input type="text" id="game-a" 
+                        class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-center text-xl outline-none focus:border-indigo-500 focus:bg-white transition"
+                        placeholder="Type answer..." 
+                        autocomplete="off"
+                        onkeydown="if(event.key === 'Enter') checkGame()">
+                    
+                    <div id="game-msg" class="h-6 mt-4 font-bold text-sm"></div>
+
+                    <div class="flex justify-center gap-3 mt-8">
+                        <button onclick="checkGame()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition">Check</button>
+                        <button onclick="nextRound()" class="text-slate-400 hover:text-slate-600 px-4 py-2 font-medium">Skip</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-center text-xs text-slate-400">Game mode tests both Words and Phrases.</div>
+        </section>
+
+    </main>
+
+    <div id="edit-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 fade-in">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Edit Card</h3>
+            <input type="hidden" id="edit-row-idx">
+            <input type="hidden" id="edit-sheet-name">
+            <div class="space-y-4">
+                <input type="text" id="edit-en" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="English">
+                <input type="text" id="edit-cn" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Chinese">
+                <input type="text" id="edit-grp" list="group-list" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Group">
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeEditModal()" class="flex-1 py-2 rounded-lg text-slate-600 font-bold hover:bg-slate-100">Cancel</button>
+                <button onclick="saveEdit()" id="btn-save-edit" class="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-md">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const CLIENT_ID = '955199508926-7rfmqsabu6r00ckjlnnruk4ak0oibbf4.apps.googleusercontent.com';
+        
+        // ⚠️ PASTE YOUR API KEY HERE ⚠️
+        const API_KEY = 'AIzaSyBfUHrIjQB1vxwGKW12KNTUNiJ8jsAok1w'; 
+
+        const SPREADSHEET_ID = '1oom6nlJZZzXWKGQEcDtHWjQJ1lffEd0Vhn-ralk8dDU';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+        let tokenClient;
+        let gapiInited = false, gisInited = false;
+        let vocabulary = []; 
+        let currentRound = null;
+        let sheetIds = {}; 
+
+        // Flashcard State
+        let flashcardQueue = [];
+        let currentFlashcard = null;
+        let isFlipped = false;
+
+        // --- AUTH & INIT ---
+        if (window.location.protocol === 'file:') showError("SECURITY WARNING: Use a local server (http://localhost), not file://");
+
+        function gapiLoaded() {
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'] });
+                    gapiInited = true; checkAuth();
+                } catch (err) {
+                    console.error("GAPI Error:", err);
+                    if(API_KEY.includes('YOUR_API_KEY')) showError("SETUP ERROR: Please paste your API Key in the code.");
+                    else showError("API ERROR: " + (err.result?.error?.message || "Unknown error"));
+                }
+            });
+        }
+        function gisLoaded() {
+            try {
+                tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: '' });
+                gisInited = true; checkAuth();
+            } catch (err) { showError("AUTH SETUP ERROR: Check Client ID."); }
+        }
+        function checkAuth() { 
+            if(gapiInited && gisInited) {
+                const btn = document.getElementById('auth-btn');
+                btn.disabled = false;
+                btn.innerHTML = `Sign In`;
+                btn.classList.remove('bg-slate-300', 'cursor-wait', 'text-slate-500');
+                btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700', 'text-white', 'cursor-pointer');
+                if(gapi.client.getToken()) btn.innerHTML = `Logged In`;
+            }
+        }
+        function showError(msg) { document.getElementById('error-banner').innerText = msg; document.getElementById('error-banner').classList.remove('hidden'); }
+
+        // --- AUTH HANDLERS ---
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error) throw (resp);
+                updateAuthUI(true);
+                await loadData();
+            };
+            if (gapi.client.getToken() === null) tokenClient.requestAccessToken({prompt: 'consent'});
+            else tokenClient.requestAccessToken({prompt: ''});
+        }
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                updateAuthUI(false);
+                vocabulary = [];
+                renderCards();
+            }
+        }
+        function updateAuthUI(isSignedIn) {
+            document.getElementById('auth-btn').classList.toggle('hidden', isSignedIn);
+            document.getElementById('signout-btn').classList.toggle('hidden', !isSignedIn);
+        }
+
+        async function loadSheetMetadata() {
+            try {
+                const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+                meta.result.sheets.forEach(s => sheetIds[s.properties.title] = s.properties.sheetId);
+            } catch (e) { console.error(e); }
+        }
+
+        // --- DATA LOGIC ---
+        async function loadData() {
+            setStatus("Loading...");
+            try {
+                const res = await gapi.client.sheets.spreadsheets.values.batchGet({
+                    spreadsheetId: SPREADSHEET_ID,
+                    ranges: ['words!A2:C', 'phrases!A2:C']
+                });
+                if(Object.keys(sheetIds).length === 0) await loadSheetMetadata();
+
+                const mapRows = (rows, sheet, type) => (rows || []).map((r, i) => ({
+                    en: r[0], cn: r[1], group: r[2] || 'Unsorted',
+                    sheet: sheet, row: i + 2, type: type
+                }));
+
+                vocabulary = [ 
+                    ...mapRows(res.result.valueRanges[0].values, 'words', 'words'), 
+                    ...mapRows(res.result.valueRanges[1].values, 'phrases', 'phrases') 
+                ];
+                
+                renderCards();
+                updateTagSuggestions();
+                setStatus("Ready");
+            } catch (e) { console.error(e); setStatus("Error"); alert("Load failed."); }
+        }
+
+        async function addEntry() {
+            const en = document.getElementById('in-word').value.trim();
+            const cn = document.getElementById('in-trans').value.trim();
+            const gr = document.getElementById('in-group').value.trim();
+            const type = document.getElementById('in-type').value;
+
+            if(!en || !cn) return alert("Fill Word and Translation");
+            setStatus("Saving...");
+            document.getElementById('btn-add').disabled = true;
+
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${type}!A:C`,
+                    valueInputOption: "RAW",
+                    resource: { values: [[en, cn, gr]] }
+                });
+                document.getElementById('in-word').value = "";
+                document.getElementById('in-trans').value = "";
+                await loadData();
+            } catch(e) { alert("Save failed."); }
+            finally { document.getElementById('btn-add').disabled = false; setStatus("Ready"); }
+        }
+
+        async function saveEdit() {
+            const row = document.getElementById('edit-row-idx').value;
+            const sheet = document.getElementById('edit-sheet-name').value;
+            const en = document.getElementById('edit-en').value;
+            const cn = document.getElementById('edit-cn').value;
+            const gr = document.getElementById('edit-grp').value;
+            
+            document.getElementById('btn-save-edit').innerText = "Updating...";
+            try {
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${sheet}!A${row}:C${row}`,
+                    valueInputOption: "RAW",
+                    resource: { values: [[en, cn, gr]] }
+                });
+                closeEditModal();
+                await loadData();
+            } catch(e) { alert("Update failed."); }
+            finally { document.getElementById('btn-save-edit').innerText = "Save"; }
+        }
+
+        async function deleteEntry(sheetName, rowIndex) {
+            if(!confirm("Delete this card?")) return;
+            const targetSheetId = sheetIds[sheetName];
+            if(targetSheetId === undefined) return alert("Error: Sheet ID not found");
+
+            setStatus("Deleting...");
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: { requests: [{ deleteDimension: { range: { sheetId: targetSheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex } } }] }
+                });
+                await loadData();
+            } catch(e) { alert("Delete failed."); }
+        }
+
+        // --- RENDER LOGIC ---
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            
+            const filter = document.getElementById('lib-filter').value;
+            const searchEl = document.getElementById('lib-search');
+            const searchQuery = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+            // 1. Filter Data
+            const filteredData = vocabulary.filter(item => {
+                const matchesType = (filter === 'all') || (item.type === filter);
+                const matchesSearch = !searchQuery || 
+                    item.en.toLowerCase().includes(searchQuery) || 
+                    item.cn.toLowerCase().includes(searchQuery);
+
+                return matchesType && matchesSearch;
+            });
+
+            if (filteredData.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">No items found matching your criteria.</div>`;
+                return;
+            }
+
+            // 2. Group Data
+            const groups = {};
+            filteredData.forEach(v => {
+                if(!groups[v.group]) groups[v.group] = [];
+                groups[v.group].push(v);
+            });
+
+            // 3. Render Groups
+            for (const [grpName, items] of Object.entries(groups)) {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden";
+                let rowsHtml = '';
+                items.forEach((item) => {
+                    const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+                    const typeBadge = item.type === 'words' 
+                        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded ml-2 font-bold">W</span>`
+                        : `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded ml-2 font-bold">P</span>`;
+
+                    rowsHtml += `
+                        <div class="flex justify-between items-center p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 group">
+                            <div class="flex-1">
+                                <div class="font-bold text-slate-700 flex items-center">${item.en} ${typeBadge}</div>
+                                <div class="text-sm text-slate-500">${item.cn}</div>
+                            </div>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                <button onclick="openEditModal(${itemJson})" class="p-2 text-slate-400 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                <button onclick="deleteEntry('${item.sheet}', ${item.row})" class="p-2 text-slate-400 hover:text-red-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                            </div>
+                        </div>`;
+                });
+                card.innerHTML = `<div class="bg-indigo-50 px-4 py-2 border-b border-indigo-100 flex justify-between items-center"><span class="font-bold text-indigo-800 text-sm uppercase tracking-wide">${grpName}</span><span class="bg-white text-indigo-600 text-xs font-bold px-2 py-0.5 rounded border border-indigo-100">${items.length}</span></div><div>${rowsHtml}</div>`;
+                container.appendChild(card);
+            }
+        }
+
+        // --- FLASHCARD LOGIC ---
+        function startFlashcards() {
+            if(vocabulary.length === 0) {
+                document.getElementById('fc-front').innerText = "Empty";
+                document.getElementById('fc-back').innerText = "Empty";
+                return;
+            }
+            // Shuffle
+            flashcardQueue = [...vocabulary].sort(() => Math.random() - 0.5);
+            nextFlashcard();
+        }
+
+        function nextFlashcard() {
+            // Reset Flip
+            isFlipped = false;
+            document.getElementById('flashcard-inner').classList.remove('rotate-y-180');
+
+            if(flashcardQueue.length === 0) {
+                // Reshuffle if end reached
+                flashcardQueue = [...vocabulary].sort(() => Math.random() - 0.5);
+                document.getElementById('fc-status').innerText = "Reshuffled deck!";
+            } else {
+                document.getElementById('fc-status').innerText = "";
+            }
+
+            // Pick next
+            currentFlashcard = flashcardQueue.pop();
+
+            // Render Front (Chinese)
+            document.getElementById('fc-front').innerText = currentFlashcard.cn;
+            
+            // Badge
+            const badge = document.getElementById('fc-badge');
+            badge.innerText = currentFlashcard.type === 'words' ? 'WORD' : 'PHRASE';
+            badge.className = currentFlashcard.type === 'words' 
+                ? "absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded bg-emerald-100 text-emerald-600 uppercase"
+                : "absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded bg-amber-100 text-amber-600 uppercase";
+
+            // Render Back (English) - Delay slightly to hide update during flip animation if active
+            setTimeout(() => {
+                document.getElementById('fc-back').innerText = currentFlashcard.en;
+            }, 200);
+        }
+
+        function flipCard() {
+            const inner = document.getElementById('flashcard-inner');
+            if(isFlipped) {
+                inner.classList.remove('rotate-y-180');
+            } else {
+                inner.classList.add('rotate-y-180');
+            }
+            isFlipped = !isFlipped;
+        }
+
+        // --- GAME LOGIC ---
+        function nextRound() {
+            if(vocabulary.length === 0) return;
+            const rand = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+            const answers = vocabulary.filter(v => v.cn === rand.cn).map(v => v.en.toLowerCase().trim());
+            currentRound = { q: rand.cn, a: answers };
+            document.getElementById('game-q').innerText = rand.cn;
+            document.getElementById('game-a').value = '';
+            document.getElementById('game-msg').innerText = '';
+            document.getElementById('game-a').focus();
+        }
+
+        function checkGame() {
+            if(!currentRound) return;
+            const val = document.getElementById('game-a').value.toLowerCase().trim();
+            const msg = document.getElementById('game-msg');
+            if(currentRound.a.includes(val)) {
+                msg.innerText = "Correct! 🎉";
+                msg.className = "h-6 mt-4 font-bold text-sm text-emerald-500 fade-in";
+                setTimeout(nextRound, 1000);
+            } else {
+                msg.innerText = "Try again ❌";
+                msg.className = "h-6 mt-4 font-bold text-sm text-red-500 fade-in";
+            }
+        }
+
+        // --- UI HELPERS ---
+        function switchTab(t) {
+            ['library', 'flashcards', 'game'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.toggle('hidden', v !== t);
+                const btn = document.getElementById(`tab-${v}`);
+                if(v === t) btn.className = "px-5 py-2 rounded-full text-sm font-bold transition bg-indigo-100 text-indigo-700";
+                else btn.className = "px-5 py-2 rounded-full text-sm font-bold transition text-slate-500 hover:bg-slate-50";
+            });
+
+            if(t === 'game') nextRound();
+            if(t === 'flashcards') startFlashcards();
+        }
+
+        function updateTagSuggestions() {
+            const dl = document.getElementById('group-list'); dl.innerHTML = '';
+            [...new Set(vocabulary.map(v => v.group))].sort().forEach(g => {
+                const opt = document.createElement('option'); opt.value = g; dl.appendChild(opt);
+            });
+        }
+        function openEditModal(i) {
+            document.getElementById('edit-row-idx').value = i.row;
+            document.getElementById('edit-sheet-name').value = i.sheet;
+            document.getElementById('edit-en').value = i.en;
+            document.getElementById('edit-cn').value = i.cn;
+            document.getElementById('edit-grp').value = i.group;
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+        function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+        function setStatus(m) { document.getElementById('status-indicator').innerText = m; }
+
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>

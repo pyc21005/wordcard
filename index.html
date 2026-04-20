@@ -93,7 +93,7 @@
                     <input type="text" id="in-word" placeholder="English Word" class="md:col-span-3 p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                     <input type="text" id="in-trans" placeholder="Chinese Translation" class="md:col-span-3 p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                     <div class="md:col-span-3 relative">
-                        <input type="text" id="in-group" list="group-list" placeholder="Group (e.g. Work)" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" id="in-group" list="group-list" placeholder="Group (e.g. WORK)" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                         <datalist id="group-list"></datalist>
                     </div>
                     <div class="md:col-span-3 flex gap-2">
@@ -176,7 +176,7 @@
             <div class="space-y-4">
                 <input type="text" id="edit-en" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="English">
                 <input type="text" id="edit-cn" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Chinese">
-                <input type="text" id="edit-grp" list="group-list" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Group">
+                <input type="text" id="edit-grp" list="group-list" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="GROUP">
             </div>
             <div class="flex gap-3 mt-6">
                 <button onclick="closeEditModal()" class="flex-1 py-2 rounded-lg text-slate-600 font-bold hover:bg-slate-100">Cancel</button>
@@ -282,7 +282,7 @@
                 if(Object.keys(sheetIds).length === 0) await loadSheetMetadata();
 
                 const mapRows = (rows, sheet, type) => (rows || []).map((r, i) => ({
-                    en: r[0], cn: r[1], group: r[2] || 'Unsorted',
+                    en: r[0], cn: r[1], group: r[2] || 'UNSORTED',
                     sheet: sheet, row: i + 2, type: type
                 }));
 
@@ -298,9 +298,10 @@
         }
 
         async function addEntry() {
-            const en = document.getElementById('in-word').value.trim();
+            // Apply lowercase to English, uppercase to Group
+            const en = document.getElementById('in-word').value.trim().toLowerCase();
             const cn = document.getElementById('in-trans').value.trim();
-            const gr = document.getElementById('in-group').value.trim();
+            const gr = document.getElementById('in-group').value.trim().toUpperCase();
             const type = document.getElementById('in-type').value;
 
             if(!en || !cn) return alert("Fill Word and Translation");
@@ -324,9 +325,10 @@
         async function saveEdit() {
             const row = document.getElementById('edit-row-idx').value;
             const sheet = document.getElementById('edit-sheet-name').value;
-            const en = document.getElementById('edit-en').value;
-            const cn = document.getElementById('edit-cn').value;
-            const gr = document.getElementById('edit-grp').value;
+            // Apply lowercase to English, uppercase to Group
+            const en = document.getElementById('edit-en').value.trim().toLowerCase();
+            const cn = document.getElementById('edit-cn').value.trim();
+            const gr = document.getElementById('edit-grp').value.trim().toUpperCase();
             
             document.getElementById('btn-save-edit').innerText = "Updating...";
             try {
@@ -401,11 +403,11 @@
 
                     rowsHtml += `
                         <div class="flex justify-between items-center p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 group">
-                            <div class="flex-1">
+                            <div class="flex-1 cursor-pointer" onclick="openEditModal(${itemJson})">
                                 <div class="font-bold text-slate-700 flex items-center">${item.en} ${typeBadge}</div>
                                 <div class="text-sm text-slate-500">${item.cn}</div>
                             </div>
-                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <div class="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition">
                                 <button onclick="openEditModal(${itemJson})" class="p-2 text-slate-400 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                                 <button onclick="deleteEntry('${item.sheet}', ${item.row})" class="p-2 text-slate-400 hover:text-red-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                             </div>
